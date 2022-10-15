@@ -34,7 +34,7 @@ app.on('ready', () => {
     // and load the index.html of the app.
     mainWindow.loadFile(path.join(__dirname, 'index.html'));
     mainWindow.setResizable(false);
-    mainWindow.hide();
+    // mainWindow.hide();
     // mainWindow.webContents.openDevTools();
 
     const tray = new Tray(appIconFill);
@@ -42,7 +42,11 @@ app.on('ready', () => {
         label: "Open",
         type: "normal",
         click: showWindow,
-    },{
+    }, {
+        label: "Refresh",
+        type: "normal",
+        click: refreshApp,
+    }, {
         label: "Quit",
         type: "normal",
         click: quitApp,
@@ -60,6 +64,12 @@ app.on('ready', () => {
         mainWindow.setSkipTaskbar(false);
         mainWindow.show();
     }
+
+    function refreshApp() {
+        app.relaunch()
+        app.exit()
+    }
+
     function quitApp() {
         if (process.platform !== 'darwin') {
             app.quit();
@@ -100,36 +110,38 @@ ipc.on("toggle-close-window", function (event) {
     mainWindow.close();
 });
 
-const rpc = new DiscordRPC.Client({ transport: 'ipc' });
+setTimeout(() => {
+    const rpc = new DiscordRPC.Client({ transport: 'ipc' });
 
-async function setActivity() {
-    rpc.setActivity({
-        details: `A Discord server for content`,
-        state: 'creators',
-        largeImageKey: 'server_logo',
-        largeImageText: 'ForTheContent',
-        smallImageKey: 'server_add',
-        smallImageText: 'Join Now',
-        buttons: [{
-            "label": "Join Server",
-            "url": "https://discord.gg/forthecontent"
-        }],
-        instance: true,
-    });
-    setTimeout(() => {
-        mainWindow.webContents.send('status');
-    }, 1500);
-}
+    async function setActivity() {
+        rpc.setActivity({
+            details: `A Discord server for content`,
+            state: 'creators',
+            largeImageKey: 'server_logo',
+            largeImageText: 'ForTheContent',
+            smallImageKey: 'server_add',
+            smallImageText: 'Join Now',
+            buttons: [{
+                "label": "Join Server",
+                "url": "https://discord.gg/forthecontent"
+            }],
+            instance: true,
+        });
+        setTimeout(() => {
+            mainWindow.webContents.send('status');
+        }, 1500);
+    }
 
-rpc.on('ready', () => {
-    setActivity();
-    setInterval(() => {
+    rpc.on('ready', () => {
         setActivity();
-    }, 15e3);
-});
+        setInterval(() => {
+            setActivity();
+        }, 15e3);
+    });
 
-rpc.login({ clientId: '977292001718464592' }).catch((err) => {
-    setTimeout(() => {
-        mainWindow.webContents.send('status', err);
-    }, 1500);
-});
+    rpc.login({ clientId: '977292001718464592' }).catch((err) => {
+        setTimeout(() => {
+            mainWindow.webContents.send('status', err);
+        }, 1500);
+    });
+}, 5000);
