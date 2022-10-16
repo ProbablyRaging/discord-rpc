@@ -1,7 +1,7 @@
 const { app, BrowserWindow, Menu, Tray } = require('electron');
 const ipc = require("electron").ipcMain;
-const DiscordRPC = require('discord-rpc');
 const path = require('path');
+const initRPC =  require('./discord_rpc');
 
 // require('electron-reloader')(module);
 
@@ -22,7 +22,7 @@ app.on('ready', () => {
         // show: false,
         autoHideMenuBar: true,
         width: 300,
-        height: 100,
+        height: 130,
         // width: 1200,
         // height: 800,
         webPreferences: {
@@ -43,7 +43,7 @@ app.on('ready', () => {
         type: "normal",
         click: showWindow,
     }, {
-        label: "Refresh",
+        label: "Restart",
         type: "normal",
         click: refreshApp,
     }, {
@@ -55,26 +55,16 @@ app.on('ready', () => {
     tray.setToolTip("ForTheContent RPC");
     tray.setContextMenu(contextMenu);
 
+    tray.on('click', function() {
+        mainWindow.show();
+     })
+
     mainWindow.on('minimize', function (event) {
         event.preventDefault();
         mainWindow.setSkipTaskbar(true);
     });
 
-    function showWindow() {
-        mainWindow.setSkipTaskbar(false);
-        mainWindow.show();
-    }
-
-    function refreshApp() {
-        app.relaunch()
-        app.exit()
-    }
-
-    function quitApp() {
-        if (process.platform !== 'darwin') {
-            app.quit();
-        }
-    }
+    initRPC();
 });
 
 app.on('window-all-closed', () => {
@@ -94,54 +84,29 @@ ipc.on("toggle-minimize-window", function (event) {
     mainWindow.minimize();
 });
 
-// Handle restore button
-// ipc.on("toggle-restore-window", function (event, args) {
-//     if (mainWindow.isMaximized()) {
-//         mainWindow.unmaximize();
-//         event.sender.send('response', 'unmaximized');
-//     } else {
-//         mainWindow.maximize();
-//         event.sender.send('response', 'maximized');
-//     }
-// });
-
 // Handle close button
 ipc.on("toggle-close-window", function (event) {
     mainWindow.close();
 });
 
-setTimeout(() => {
-    const rpc = new DiscordRPC.Client({ transport: 'ipc' });
+// Retry connection
+ipc.on("retry-connection", function (event) {
+    initRPC();
+});
 
-    async function setActivity() {
-        rpc.setActivity({
-            details: `A Discord server for content`,
-            state: 'creators',
-            largeImageKey: 'server_logo',
-            largeImageText: 'ForTheContent',
-            smallImageKey: 'server_add',
-            smallImageText: 'Join Now',
-            buttons: [{
-                "label": "Join Server",
-                "url": "https://discord.gg/forthecontent"
-            }],
-            instance: true,
-        });
-        setTimeout(() => {
-            mainWindow.webContents.send('status');
-        }, 1500);
+// Functions
+function showWindow() {
+    mainWindow.setSkipTaskbar(false);
+    mainWindow.show();
+}
+
+function refreshApp() {
+    app.relaunch();
+    app.exit();
+}
+
+function quitApp() {
+    if (process.platform !== 'darwin') {
+        app.quit();
     }
-
-    rpc.on('ready', () => {
-        setActivity();
-        setInterval(() => {
-            setActivity();
-        }, 15e3);
-    });
-
-    rpc.login({ clientId: '977292001718464592' }).catch((err) => {
-        setTimeout(() => {
-            mainWindow.webContents.send('status', err);
-        }, 1500);
-    });
-}, 5000);
+}
